@@ -3167,5 +3167,57 @@ def start_server(
 
         threading.Thread(target=_open, daemon=True).start()
 
+    # Portable (Windows-USB) mode: drop the session token and bound URL
+    # into a file that the GUI launcher reads to build the chat URL,
+    # and register a graceful WAL TRUNCATE checkpoint on shutdown so
+    # SQLite is safe to yank from the USB stick (exFAT loses
+    # un-checkpointed WAL frames).
+    try:
+        from hermes_constants import is_portable, get_hermes_home
+
+        if is_portable():
+            cache_dir = get_hermes_home() / "cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            token_path = cache_dir / "dashboard-token.txt"
+            payload = (
+                f"url=http://{host}:{port}\n"
+                f"token={_SESSION_TOKEN}\n"
+                f"pid={os.getpid()}\n"
+            )
+            tmp = token_path.with_suffix(".tmp")
+            tmp.write_text(payload, encoding="utf-8")
+            try:
+                # Best-effort tighten perms on POSIX (WSL).
+                os.chmod(tmp, 0o600)
+            except OSError:
+                pass
+            os.replace(tmp, token_path)
+
+            import atexit
+
+            def _portable_shutdown():
+                # Flush SQLite WAL fully so the USB stick is safe to yank.
+                try:
+                    from hermes_state import SessionDB
+
+                    db = SessionDB()
+                    try:
+                        db.checkpoint_truncate()
+                    finally:
+                        db.close()
+                except Exception:
+                    pass
+                # Wipe the token so a stale value cannot be replayed
+                # if the launcher is restarted without rebooting hermes.
+                try:
+                    token_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+            atexit.register(_portable_shutdown)
+    except Exception:
+        # Portable bookkeeping must never block dashboard startup.
+        _log.debug("portable-mode token bootstrap skipped", exc_info=True)
+
     print(f"  Hermes Web UI → http://{host}:{port}")
     uvicorn.run(app, host=host, port=port, log_level="warning")

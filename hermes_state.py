@@ -242,6 +242,24 @@ class SessionDB:
         except Exception:
             pass  # Best effort — never fatal.
 
+    def checkpoint_truncate(self) -> None:
+        """Force a TRUNCATE WAL checkpoint, blocking until complete.
+
+        Stronger than the implicit PASSIVE checkpoint :meth:`close` does:
+        TRUNCATE waits for all reader/writer activity to drain, applies
+        every WAL frame back into the main DB file, and zeros the WAL
+        file.  Use this on graceful shutdown in environments where the
+        DB file may be physically removed (e.g. a USB stick about to be
+        ejected) — exFAT can lose un-checkpointed WAL frames on yank.
+        Best-effort: never raises.
+        """
+        try:
+            with self._lock:
+                if self._conn is not None:
+                    self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except Exception:
+            logger.debug("TRUNCATE checkpoint failed", exc_info=True)
+
     def close(self):
         """Close the database connection.
 

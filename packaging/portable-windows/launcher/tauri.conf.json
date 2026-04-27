@@ -1,0 +1,74 @@
+{
+  "$schema": "https://schema.tauri.app/config/1",
+  "build": {
+    "distDir": "ui",
+    "devPath": "ui",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "package": {
+    "productName": "Hermes 助手",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "window": {
+        "all": false,
+        "hide": true,
+        "show": true,
+        "setFocus": true,
+        "close": true
+      },
+      "dialog": {
+        "all": false,
+        "message": true,
+        "ask": true
+      }
+    },
+    "windows": [
+      {
+        "title": "Hermes 助手",
+        "width": 560,
+        "height": 420,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": true,
+        "center": true,
+        "visible": false
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/tray.ico",
+      "iconAsTemplate": false,
+      "menuOnLeftClick": false,
+      "title": "Hermes"
+    },
+    "bundle": {
+      "active": true,
+      "targets": ["nsis"],
+      "identifier": "ai.nousresearch.hermes.portable",
+      "publisher": "Nous Research",
+      "icon": ["icons/icon.ico"],
+      "windows": {
+        "wix": {
+          "language": ["zh-CN"]
+        },
+        "nsis": {
+          "languages": ["SimpChinese"],
+          "displayLanguageSelector": false
+        },
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "http://timestamp.digicert.com"
+      }
+    },
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    }
+  }
+}

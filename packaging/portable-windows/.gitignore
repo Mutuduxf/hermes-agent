@@ -1,0 +1,6 @@
+# Build outputs — never commit
+launcher/target/
+launcher/Cargo.lock
+launcher/icons/icon.ico
+launcher/icons/icon.png
+launcher/icons/tray.ico

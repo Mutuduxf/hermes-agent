@@ -1,0 +1,70 @@
+:root {
+  color-scheme: light dark;
+  --gold: #d4a017;
+  --bg: #faf7f0;
+  --card: #ffffff;
+  --text: #2a2723;
+  --muted: #6b665e;
+  --error: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1a;
+    --card: #262626;
+    --text: #f0eadf;
+    --muted: #b8a880;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 14px/1.5 "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+main { padding: 24px 28px; }
+header h1 { margin: 0 0 4px; font-size: 20px; color: var(--gold); }
+.subtitle { margin: 0 0 16px; color: var(--muted); font-size: 12px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid rgba(212, 160, 23, 0.25);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.card.hidden { display: none; }
+.card.error { border-color: var(--error); }
+
+.stage-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.stage-row #stage-icon { font-size: 18px; }
+.bar-wrap {
+  height: 8px; background: rgba(0, 0, 0, 0.08);
+  border-radius: 4px; overflow: hidden;
+}
+.bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--gold), #f5c451);
+  transition: width 0.4s ease-out;
+}
+.bar.indeterminate {
+  width: 33% !important;
+  animation: slide 1.2s ease-in-out infinite alternate;
+}
+@keyframes slide {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(300%); }
+}
+.detail { margin: 8px 0 0; color: var(--muted); font-size: 12px; min-height: 1em; }
+
+.actions { display: flex; gap: 10px; margin-top: 14px; }
+button {
+  font: inherit; padding: 8px 16px; border-radius: 6px;
+  border: 1px solid var(--gold); background: var(--gold);
+  color: #1a1a1a; cursor: pointer;
+}
+button.ghost { background: transparent; color: var(--text); }
+button:hover { filter: brightness(1.05); }
+.footnote { margin-top: 10px; font-size: 11px; color: var(--muted); }

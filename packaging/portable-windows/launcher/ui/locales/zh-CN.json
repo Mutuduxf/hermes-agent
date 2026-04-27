@@ -1,0 +1,28 @@
+{
+  "subtitle": "便携版 · 数据保存在 U 盘上",
+
+  "stage_self_check": "正在检查环境…",
+  "stage_importing": "正在为这台电脑准备 Hermes(只需做一次)…",
+  "stage_booting": "正在启动 Hermes…",
+  "stage_ready": "准备就绪",
+  "stage_stopping": "正在安全退出…",
+  "stage_error": "出现问题",
+
+  "self_check_running": "正在检查 Windows 子系统是否可用…",
+  "importing_first_run": "首次准备约需 2 分钟,请勿拔出 U 盘",
+  "decompressing_rootfs": "正在解压系统镜像…",
+  "importing_to_wsl": "正在注册到 Windows 子系统…",
+  "booting_hermes": "正在启动 Hermes 服务…",
+  "waiting_for_dashboard": "正在等待聊天界面就绪…",
+  "ready": "聊天界面已经打开",
+
+  "ready_title": "✅ 已准备就绪!",
+  "ready_body": "浏览器应该已经自动打开聊天界面。",
+  "open_chat_btn": "打开聊天界面",
+  "hide_btn": "最小化到托盘",
+  "footnote": "想退出?右下角找到 🟡 小图标 → 右键 → \"安全退出并弹出 U 盘\"",
+
+  "error_title": "出现问题",
+  "retry_btn": "重试",
+  "logs_btn": "查看日志"
+}
