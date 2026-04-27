@@ -113,10 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: launcher
-          path: |
-            packaging/portable-windows/launcher/target/x86_64-pc-windows-msvc/release/HermesLauncher.exe
-            packaging/portable-windows/launcher/ui/**
-            packaging/portable-windows/launcher/icons/**
+          path: packaging/portable-windows/launcher/target/x86_64-pc-windows-msvc/release/HermesLauncher.exe
           retention-days: 7
           if-no-files-found: error
 
@@ -161,13 +158,20 @@ jobs:
           cp in/rootfs/HermesPortable.tar.zst.sha256 "$STAGE/runtime/"
           cp in/rootfs/version.txt "$STAGE/runtime/"
 
-          # Launcher
-          find in/launcher -name HermesLauncher.exe -exec cp {} "$STAGE/launcher/HermesLauncher.exe" \;
+          # Launcher exe (download-artifact flattens the upload root, so the
+          # exe is at in/launcher/HermesLauncher.exe).
+          cp in/launcher/HermesLauncher.exe "$STAGE/launcher/HermesLauncher.exe"
           # Single user-visible icon at the root (a copy, since Windows
           # cannot rename a .lnk to .exe).
           cp "$STAGE/launcher/HermesLauncher.exe" "$STAGE/启动 Hermes 助手.exe"
-          cp -r in/launcher/packaging/portable-windows/launcher/ui/. "$STAGE/launcher/ui/" 2>/dev/null || true
-          cp -r in/launcher/packaging/portable-windows/launcher/icons/. "$STAGE/launcher/icons/" 2>/dev/null || true
+
+          # ui/ and icons/ are static — read them from the checkout, not
+          # the launcher artifact, to keep the upload step focused on the
+          # one binary that actually needs cross-OS handoff.
+          cp -r packaging/portable-windows/launcher/ui/. "$STAGE/launcher/ui/"
+          if [[ -d packaging/portable-windows/launcher/icons ]]; then
+            cp -r packaging/portable-windows/launcher/icons/. "$STAGE/launcher/icons/" || true
+          fi
 
           # Static USB-template files
           cp packaging/portable-windows/usb-template/README.txt "$STAGE/"

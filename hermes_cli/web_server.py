@@ -3202,8 +3202,7 @@ def start_server(
 
                     db = SessionDB()
                     try:
-                        if getattr(db, "_conn", None) is not None:
-                            db._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                        db.checkpoint_truncate()
                     finally:
                         db.close()
                 except Exception:

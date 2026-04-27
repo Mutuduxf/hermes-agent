@@ -20,9 +20,13 @@ impl Paths {
         let exe = std::env::current_exe().context("current_exe")?;
         let mut cur: &Path = &exe;
         while let Some(parent) = cur.parent() {
-            if parent.join("runtime").join("HermesPortable.tar.zst").exists()
-                || parent.join("runtime").exists() && parent.join("data").exists()
-            {
+            let has_tarball = parent
+                .join("runtime")
+                .join("HermesPortable.tar.zst")
+                .exists();
+            let has_runtime_and_data =
+                parent.join("runtime").exists() && parent.join("data").exists();
+            if has_tarball || has_runtime_and_data {
                 return Ok(Paths {
                     usb_root: parent.to_path_buf(),
                 });

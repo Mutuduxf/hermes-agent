@@ -94,9 +94,7 @@ document.getElementById("hide-btn").addEventListener("click", () =>
 );
 document.getElementById("retry-btn").addEventListener("click", startup);
 document.getElementById("logs-btn").addEventListener("click", () => {
-  // Logs button is wired through the Rust side too (tray); here we just
-  // re-trigger the tray "logs" action by emitting a hint event.
-  invoke("safe_exit", { unregister: false }).catch(() => {});
+  invoke("open_logs").catch((e) => console.error("open_logs failed", e));
 });
 
 listen("hermes://progress", (e) => {

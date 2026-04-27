@@ -22,7 +22,6 @@
 
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
-use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -166,6 +165,20 @@ async fn safe_exit(unregister: bool) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn open_logs() -> Result<(), String> {
+    let paths = Paths::detect().map_err(|e| e.to_string())?;
+    let log_dir = paths.usb_root.join("data").join("logs");
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        return Err(format!("create log dir: {e}"));
+    }
+    Command::new("explorer.exe")
+        .arg(&log_dir)
+        .spawn()
+        .map_err(|e| format!("open explorer: {e}"))?;
+    Ok(())
+}
+
 // ─────────────────────────── Helpers ─────────────────────────────────────────
 
 fn ensure_distro<F>(paths: &Paths, distro: &str, emit: &F) -> Result<()>
@@ -184,9 +197,10 @@ where
         ));
     }
     let status = Command::new(&zstd)
-        .args(["-d", "-f", "-o"])
-        .arg(&temp_tar)
+        .args(["-d", "-f"])
         .arg(&rootfs)
+        .arg("-o")
+        .arg(&temp_tar)
         .status()
         .with_context(|| format!("invoke zstd at {}", zstd.display()))?;
     if !status.success() {
@@ -309,6 +323,7 @@ fn main() {
             run_self_check,
             ensure_and_boot,
             open_chat,
+            open_logs,
             safe_exit
         ])
         .system_tray(build_tray())
@@ -398,8 +413,3 @@ pub(crate) fn short_hash(s: &str) -> String {
     let digest = h.finalize();
     digest.iter().take(4).map(|b| format!("{:02x}", b)).collect()
 }
-
-// Unused-imports silencer for the cross-module scaffolding above when unit
-// tests are compiled in isolation.
-#[allow(dead_code)]
-fn _unused_path_marker(_: &PathBuf) {}

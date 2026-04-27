@@ -140,7 +140,9 @@ docker run --rm \
 
         echo "==> Installing Playwright Chromium (--only-shell to save space)"
         # Chromium-shell is ~150 MB vs ~500 MB for full chromium.
-        if [[ -d node_modules/playwright ]] || .venv/bin/python -c "import playwright" 2>/dev/null; then
+        # Playwright is a Python dependency here (NOT npm) — the previous
+        # check looked at node_modules, which never exists in this venv.
+        if .venv/bin/python -c "import playwright" 2>/dev/null; then
             PLAYWRIGHT_BROWSERS_PATH=/opt/hermes/.playwright \
                 .venv/bin/python -m playwright install --only-shell chromium || true
         fi

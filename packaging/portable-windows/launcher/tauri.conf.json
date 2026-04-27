@@ -12,7 +12,23 @@
   },
   "tauri": {
     "allowlist": {
-      "all": true
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "window": {
+        "all": false,
+        "hide": true,
+        "show": true,
+        "setFocus": true,
+        "close": true
+      },
+      "dialog": {
+        "all": false,
+        "message": true,
+        "ask": true
+      }
     },
     "windows": [
       {

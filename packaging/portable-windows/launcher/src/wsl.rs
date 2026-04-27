@@ -145,15 +145,20 @@ pub fn spawn_entry(distro: &str, hermes_home: &str, port: u16, entry: &str) -> R
 }
 
 fn decode_utf16_or_utf8(buf: &[u8]) -> String {
-    if buf.len() >= 2 && buf.len() % 2 == 0 && buf[1] == 0 {
-        let u16s: Vec<u16> = buf
+    // wsl.exe emits UTF-16-LE with a BOM (0xFF 0xFE) on Windows 10+.
+    // Anything else we fall back to UTF-8.  The earlier heuristic of
+    // "byte 1 == 0" only worked for ASCII-leading text and would fail
+    // on any localized output.
+    if buf.starts_with(&[0xFF, 0xFE]) && buf.len() % 2 == 0 {
+        let body = &buf[2..];
+        let u16s: Vec<u16> = body
             .chunks_exact(2)
             .map(|c| u16::from_le_bytes([c[0], c[1]]))
             .collect();
-        String::from_utf16_lossy(&u16s)
-    } else {
-        String::from_utf8_lossy(buf).into_owned()
+        // Strip embedded NULs that wsl --list --quiet sometimes pads with.
+        return String::from_utf16_lossy(&u16s).replace('\0', "");
     }
+    String::from_utf8_lossy(buf).into_owned()
 }
 
 #[cfg(test)]
@@ -161,16 +166,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn decode_utf16_le() {
-        let bytes: Vec<u8> = "Hi\n"
-            .encode_utf16()
-            .flat_map(|u| u.to_le_bytes())
-            .collect();
+    fn decode_utf16_le_with_bom() {
+        let mut bytes: Vec<u8> = vec![0xFF, 0xFE];
+        bytes.extend("Hi\n".encode_utf16().flat_map(|u| u.to_le_bytes()));
         assert_eq!(decode_utf16_or_utf8(&bytes), "Hi\n");
     }
 
     #[test]
-    fn decode_falls_back_to_utf8() {
+    fn decode_utf16_le_with_bom_and_nuls() {
+        let mut bytes: Vec<u8> = vec![0xFF, 0xFE];
+        bytes.extend(
+            "HermesPortable_a1b2c3d4\n"
+                .encode_utf16()
+                .flat_map(|u| u.to_le_bytes()),
+        );
+        // Some wsl.exe versions append trailing NULs.
+        bytes.extend_from_slice(&[0, 0, 0, 0]);
+        assert!(decode_utf16_or_utf8(&bytes).contains("HermesPortable_a1b2c3d4"));
+    }
+
+    #[test]
+    fn decode_falls_back_to_utf8_without_bom() {
         assert_eq!(decode_utf16_or_utf8(b"plain ascii"), "plain ascii");
     }
 }
