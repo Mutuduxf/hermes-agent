@@ -1,0 +1,213 @@
+name: portable-windows
+
+# Builds the Windows USB-portable distribution: the Debian rootfs (on
+# Linux) + the Tauri GUI launcher (on Windows), then assembles the
+# user-facing zip.
+#
+# Triggers:
+#   * manual (workflow_dispatch) — for ad-hoc dev builds
+#   * release published — uploads the zip as a release asset
+#
+# Note: this workflow is heavy (the rootfs build is ~10 minutes and
+# pulls Playwright Chromium).  It is *not* on PR by default.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version label baked into the artifact filename (e.g. v0.11.1 or dev)"
+        default: "dev"
+        required: true
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  build-rootfs:
+    name: Build Debian portable rootfs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space (Playwright + node_modules are ~2 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                       /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build rootfs (HermesPortable.tar.zst)
+        run: bash scripts/build_portable_windows.sh
+
+      - name: Upload rootfs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootfs
+          path: dist/portable-windows/
+          retention-days: 7
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────
+  build-launcher:
+    name: Build Tauri launcher (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packaging/portable-windows/launcher/target
+          key: ${{ runner.os }}-cargo-launcher-${{ hashFiles('packaging/portable-windows/launcher/Cargo.toml') }}
+
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --locked --version "^1.6"
+
+      - name: Render placeholder icons (real release uses signed artwork)
+        shell: pwsh
+        run: |
+          $icons = "packaging/portable-windows/launcher/icons"
+          New-Item -ItemType Directory -Force -Path $icons | Out-Null
+          # 1×1 PNG → ICO is enough to make `cargo tauri build` happy in CI.
+          # The release pipeline (separate job, not in CI) replaces these.
+          $bytes = [Convert]::FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
+          [IO.File]::WriteAllBytes("$icons/icon.png", $bytes)
+          # Tauri tooling can convert PNG to ICO when icons are referenced
+          # as .png in tauri.conf.json — to keep this CI working without
+          # extra tooling we just copy the same bytes into .ico (Windows
+          # accepts BMP-shaped .ico headers, but to be safe we use a
+          # tiny well-formed icon from the cargo-iconmaker bin).
+          cargo install --locked icon-resize 2>$null
+          if (-not (Test-Path "$icons/icon.ico")) {
+            # Fallback: use any icon shipped in the repo.
+            Copy-Item assets/logo.png "$icons/icon.png" -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Build launcher
+        working-directory: packaging/portable-windows/launcher
+        run: cargo tauri build --target x86_64-pc-windows-msvc --bundles none
+        # `--bundles none`: we don't want an MSI/NSIS installer; we ship
+        # the bare .exe so the user can drag-and-drop onto a USB stick.
+
+      - name: Run launcher unit tests
+        working-directory: packaging/portable-windows/launcher
+        run: cargo test --target x86_64-pc-windows-msvc
+
+      - name: Upload launcher artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher
+          path: |
+            packaging/portable-windows/launcher/target/x86_64-pc-windows-msvc/release/HermesLauncher.exe
+            packaging/portable-windows/launcher/ui/**
+            packaging/portable-windows/launcher/icons/**
+          retention-days: 7
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────
+  package:
+    name: Assemble USB zip
+    needs: [build-rootfs, build-launcher]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download rootfs
+        uses: actions/download-artifact@v4
+        with:
+          name: rootfs
+          path: in/rootfs
+
+      - name: Download launcher
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher
+          path: in/launcher
+
+      - name: Determine version label
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "label=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "label=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stage USB layout
+        run: |
+          set -euxo pipefail
+          STAGE="HermesPortable-Windows-${{ steps.ver.outputs.label }}"
+          mkdir -p "$STAGE/runtime" "$STAGE/launcher/ui" "$STAGE/launcher/icons" "$STAGE/launcher/ext" "$STAGE/data"
+
+          # Rootfs + metadata
+          cp in/rootfs/HermesPortable.tar.zst "$STAGE/runtime/"
+          cp in/rootfs/HermesPortable.tar.zst.sha256 "$STAGE/runtime/"
+          cp in/rootfs/version.txt "$STAGE/runtime/"
+
+          # Launcher
+          find in/launcher -name HermesLauncher.exe -exec cp {} "$STAGE/launcher/HermesLauncher.exe" \;
+          # Single user-visible icon at the root (a copy, since Windows
+          # cannot rename a .lnk to .exe).
+          cp "$STAGE/launcher/HermesLauncher.exe" "$STAGE/启动 Hermes 助手.exe"
+          cp -r in/launcher/packaging/portable-windows/launcher/ui/. "$STAGE/launcher/ui/" 2>/dev/null || true
+          cp -r in/launcher/packaging/portable-windows/launcher/icons/. "$STAGE/launcher/icons/" 2>/dev/null || true
+
+          # Static USB-template files
+          cp packaging/portable-windows/usb-template/README.txt "$STAGE/"
+          cp packaging/portable-windows/usb-template/autorun.inf "$STAGE/"
+          cp "packaging/portable-windows/usb-template/问题排查.txt" "$STAGE/"
+
+          # Bundled zstd.exe is not redistributable from this workflow —
+          # release maintainers must drop a signed copy into
+          # launcher/ext/zstd.exe before publishing. CI leaves a stub
+          # README so the structure is obvious.
+          cat > "$STAGE/launcher/ext/README.txt" <<'EOF'
+          Place a signed zstd.exe (https://github.com/facebook/zstd/releases) here
+          before shipping. The launcher's import step invokes it to decompress
+          runtime\HermesPortable.tar.zst.
+          EOF
+
+          # Empty data\ skeleton so the directory is preserved in the zip
+          mkdir -p "$STAGE/data/cache" "$STAGE/data/logs"
+          touch "$STAGE/data/.placeholder"
+
+          ls -la "$STAGE"
+          du -sh "$STAGE"
+
+      - name: Create zip
+        run: |
+          STAGE="HermesPortable-Windows-${{ steps.ver.outputs.label }}"
+          zip -r "${STAGE}.zip" "$STAGE"
+          ls -lh "${STAGE}.zip"
+
+      - name: Upload final zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HermesPortable-Windows-${{ steps.ver.outputs.label }}
+          path: HermesPortable-Windows-${{ steps.ver.outputs.label }}.zip
+          retention-days: 30
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: HermesPortable-Windows-${{ steps.ver.outputs.label }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

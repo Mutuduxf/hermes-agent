@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Entrypoint invoked by the Windows GUI launcher to start hermes inside
+# the portable WSL2 distro.
+#
+# Contract with the launcher:
+#   * The launcher passes the bound port via $HERMES_DASHBOARD_PORT.
+#   * The launcher mounts the USB stick's data\ folder at /opt/data via
+#     the Windows-side -d/--cd ; we then point HERMES_HOME at that path.
+#   * stdout/stderr are tee'd into $HERMES_HOME/logs/portable-bootstrap.log
+#     so the launcher's "View logs" button has something to show even if
+#     the dashboard never comes up.
+#
+# Exit codes:
+#   0   dashboard exited cleanly
+#   2   missing prerequisite (the launcher should report this verbatim)
+#   3   web_dist build was missing — corrupt or partial install
+#
+
+set -euo pipefail
+
+# 1. Resolve HERMES_HOME.  The launcher should have set this to the
+#    USB-mounted data directory (e.g. /mnt/d/data).  If unset, we
+#    fall back to /opt/data which is the in-rootfs default.
+export HERMES_HOME="${HERMES_HOME:-/opt/data}"
+export HERMES_PORTABLE=1
+mkdir -p "$HERMES_HOME/logs" "$HERMES_HOME/cache"
+
+LOG_FILE="$HERMES_HOME/logs/portable-bootstrap.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+echo "─── Hermes portable bootstrap ──────────────────────────"
+echo "  HERMES_HOME=$HERMES_HOME"
+echo "  port=${HERMES_DASHBOARD_PORT:-9119}"
+echo "  uid=$(id -u)  user=$(id -un)"
+echo "  date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "─────────────────────────────────────────────────────────"
+
+# 2. Sanity-check the install.
+if [[ ! -x /opt/hermes/.venv/bin/hermes ]]; then
+    echo "FATAL: /opt/hermes/.venv/bin/hermes is missing — the rootfs is corrupt." >&2
+    exit 2
+fi
+
+# Pre-built dashboard SPA must be present; the launcher can't build it
+# on the user's machine (no Node toolchain in the runtime image).
+if [[ ! -d /opt/hermes/web/dist ]]; then
+    echo "FATAL: /opt/hermes/web/dist not found — dashboard build was not baked into the rootfs." >&2
+    exit 3
+fi
+export HERMES_WEB_DIST=/opt/hermes/web/dist
+
+# 3. First-run niceties: seed config.yaml from a minimal default if absent.
+if [[ ! -f "$HERMES_HOME/config.yaml" ]]; then
+    cat > "$HERMES_HOME/config.yaml" <<'YAML'
+# Auto-created on first portable boot.  Edit via the dashboard UI;
+# direct edits also work after a restart.
+display:
+  skin: default
+  background_process_notifications: result
+network:
+  force_ipv4: false
+YAML
+fi
+
+# 4. Hand off to the dashboard.  The launcher reads the printed token
+#    file ($HERMES_HOME/cache/dashboard-token.txt) to learn the URL and
+#    open the user's default browser.
+PORT="${HERMES_DASHBOARD_PORT:-9119}"
+exec /opt/hermes/.venv/bin/hermes dashboard \
+    --host 127.0.0.1 \
+    --port "$PORT" \
+    --no-open \
+    --tui

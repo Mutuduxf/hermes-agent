@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hermes 助手</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app">
+    <header>
+      <h1>Hermes 助手</h1>
+      <p class="subtitle" data-i18n="subtitle">便携版 · 数据保存在 U 盘上</p>
+    </header>
+
+    <section id="progress-card" class="card">
+      <div class="stage-row">
+        <span id="stage-icon" aria-hidden="true">⏳</span>
+        <strong id="stage-title" data-i18n="stage_self_check">正在检查环境…</strong>
+      </div>
+      <div class="bar-wrap">
+        <div id="bar" class="bar"></div>
+      </div>
+      <p id="stage-detail" class="detail">&nbsp;</p>
+    </section>
+
+    <section id="ready-card" class="card hidden">
+      <p>
+        <strong data-i18n="ready_title">准备就绪!</strong>
+        <span data-i18n="ready_body">浏览器应该已经自动打开聊天界面。</span>
+      </p>
+      <div class="actions">
+        <button id="open-chat-btn" data-i18n="open_chat_btn">打开聊天界面</button>
+        <button id="hide-btn" class="ghost" data-i18n="hide_btn">最小化到托盘</button>
+      </div>
+      <p class="footnote" data-i18n="footnote">
+        想退出?右下角找到 🟡 小图标 → 右键 → "安全退出并弹出 U 盘"
+      </p>
+    </section>
+
+    <section id="error-card" class="card hidden error">
+      <strong data-i18n="error_title">出现问题</strong>
+      <p id="error-detail">&nbsp;</p>
+      <div class="actions">
+        <button id="retry-btn" data-i18n="retry_btn">重试</button>
+        <button id="logs-btn" class="ghost" data-i18n="logs_btn">查看日志</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

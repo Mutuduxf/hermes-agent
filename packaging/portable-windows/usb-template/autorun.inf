@@ -1,0 +1,9 @@
+[autorun]
+label=Hermes 助手
+icon=launcher\icons\icon.ico
+
+; Windows ignores ``open=`` on USB removable media since Windows 7 SP1
+; (KB971029) — modern Windows will NOT auto-launch HermesLauncher.exe.
+; This file exists only to set the volume label and drive icon when the
+; user opens the stick in File Explorer.  The user must double-click
+; the launcher manually, which is the correct security posture.
