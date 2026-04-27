@@ -111,3 +111,21 @@ class TestIsContainer:
         # Even if we make os.path.exists return False, cached value wins
         monkeypatch.setattr(os.path, "exists", lambda p: False)
         assert is_container() is True
+
+
+class TestIsPortable:
+    """Tests for is_portable() — Windows-USB portable mode flag."""
+
+    def test_unset_returns_false(self, monkeypatch):
+        monkeypatch.delenv("HERMES_PORTABLE", raising=False)
+        assert hermes_constants.is_portable() is False
+
+    @pytest.mark.parametrize("val", ["1", "true", "yes", "on", "TRUE", " 1 "])
+    def test_truthy_values(self, monkeypatch, val):
+        monkeypatch.setenv("HERMES_PORTABLE", val)
+        assert hermes_constants.is_portable() is True
+
+    @pytest.mark.parametrize("val", ["0", "false", "no", "off", ""])
+    def test_falsy_values(self, monkeypatch, val):
+        monkeypatch.setenv("HERMES_PORTABLE", val)
+        assert hermes_constants.is_portable() is False

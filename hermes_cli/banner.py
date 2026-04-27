@@ -427,6 +427,14 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
     left_lines.append(f"[dim {dim}]{cwd}[/]")
     if session_id:
         left_lines.append(f"[dim {session_color}]Session: {session_id}[/]")
+    try:
+        from hermes_constants import is_portable, display_hermes_home
+        if is_portable():
+            left_lines.append(
+                f"[dim {accent}]Portable[/] [dim {dim}]· data on USB · {display_hermes_home()}[/]"
+            )
+    except Exception:
+        pass
     left_content = "\n".join(left_lines)
 
     right_lines = [f"[bold {accent}]Available Tools[/]"]

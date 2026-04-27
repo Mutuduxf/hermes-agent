@@ -159,6 +159,25 @@ def parse_reasoning_effort(effort: str) -> dict | None:
     return None
 
 
+def is_portable() -> bool:
+    """Return True when running in Windows-USB portable mode.
+
+    Activated by setting ``HERMES_PORTABLE=1`` in the environment.
+    The Windows GUI launcher (see ``packaging/portable-windows/``)
+    sets this when it boots Hermes inside the bundled WSL2 distro
+    so that:
+
+    * the dashboard writes its session token to a file the launcher
+      can read (so the launcher can build the chat URL);
+    * SQLite performs a WAL ``TRUNCATE`` checkpoint on shutdown
+      (USB exFAT can lose un-checkpointed WAL frames on yank);
+    * the welcome banner shows a "Portable" indicator.
+
+    Import-safe — no heavy deps.
+    """
+    return os.environ.get("HERMES_PORTABLE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def is_termux() -> bool:
     """Return True when running inside a Termux (Android) environment.
 
