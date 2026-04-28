@@ -7,7 +7,7 @@
     "beforeBuildCommand": ""
   },
   "package": {
-    "productName": "Hermes 助手",
+    "productName": "HermesLauncher",
     "version": "0.1.0"
   },
   "tauri": {
