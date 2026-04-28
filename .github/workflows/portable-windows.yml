@@ -81,23 +81,46 @@ jobs:
       - name: Render placeholder icons (real release uses signed artwork)
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $icons = "packaging/portable-windows/launcher/icons"
           New-Item -ItemType Directory -Force -Path $icons | Out-Null
-          # 1×1 PNG → ICO is enough to make `cargo tauri build` happy in CI.
-          # The release pipeline (separate job, not in CI) replaces these.
-          $bytes = [Convert]::FromBase64String(
+
+          # Smallest valid PNG (1×1 transparent) — also written next to the
+          # ICOs for any tooling that prefers PNG sources.
+          $png = [Convert]::FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
-          [IO.File]::WriteAllBytes("$icons/icon.png", $bytes)
-          # Tauri tooling can convert PNG to ICO when icons are referenced
-          # as .png in tauri.conf.json — to keep this CI working without
-          # extra tooling we just copy the same bytes into .ico (Windows
-          # accepts BMP-shaped .ico headers, but to be safe we use a
-          # tiny well-formed icon from the cargo-iconmaker bin).
-          cargo install --locked icon-resize 2>$null
-          if (-not (Test-Path "$icons/icon.ico")) {
-            # Fallback: use any icon shipped in the repo.
-            Copy-Item assets/logo.png "$icons/icon.png" -Force -ErrorAction SilentlyContinue
+          [IO.File]::WriteAllBytes("$icons/icon.png", $png)
+
+          # Build a real, minimal, valid .ico file using the Vista+
+          # PNG-embedded ICO format. This avoids any external tool
+          # (ImageMagick, cargo-install of a non-existent crate, etc.)
+          # and is accepted by Tauri's `ico` crate, by `winres`, and by
+          # Windows itself for systemTray + bundle.icon at build time.
+          # The release pipeline replaces these with real artwork.
+          function Write-IcoFromPng([string]$path, [byte[]]$pngBytes) {
+              $ms = New-Object System.IO.MemoryStream
+              $bw = New-Object System.IO.BinaryWriter($ms)
+              # ICONDIR
+              $bw.Write([uint16]0)              # reserved
+              $bw.Write([uint16]1)              # type = 1 (icon)
+              $bw.Write([uint16]1)              # image count
+              # ICONDIRENTRY (16 bytes)
+              $bw.Write([byte]0)                # width  (0 = 256, fine for 1×1 placeholder)
+              $bw.Write([byte]0)                # height (0 = 256)
+              $bw.Write([byte]0)                # color count
+              $bw.Write([byte]0)                # reserved
+              $bw.Write([uint16]1)              # color planes
+              $bw.Write([uint16]32)             # bits per pixel
+              $bw.Write([uint32]$pngBytes.Length)
+              $bw.Write([uint32]22)             # offset to image data (6 + 16)
+              $bw.Write($pngBytes)
+              [IO.File]::WriteAllBytes($path, $ms.ToArray())
+              $bw.Dispose()
+              $ms.Dispose()
           }
+
+          Write-IcoFromPng "$icons/icon.ico" $png
+          Write-IcoFromPng "$icons/tray.ico" $png
 
       - name: Build launcher
         working-directory: packaging/portable-windows/launcher
