@@ -5,6 +5,18 @@ edition = "2021"
 description = "Hermes Agent portable USB launcher (Windows)"
 license = "Apache-2.0"
 
+# The CI workflow + USB layout expect the binary to be named
+# `HermesLauncher.exe` (PascalCase, no hyphen) since that is the
+# user-facing executable shipped on the stick. Cargo would otherwise
+# derive the binary name from `package.name` and produce
+# `hermes-launcher.exe`. Pin the binary name explicitly so the path in
+# `.github/workflows/portable-windows.yml`
+# (`target/.../release/HermesLauncher.exe`) and the assemble step both
+# resolve regardless of `--bundles none`.
+[[bin]]
+name = "HermesLauncher"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "1", features = [] }
 

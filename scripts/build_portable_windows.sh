@@ -130,7 +130,12 @@ docker run --rm \
 
         echo "==> Building dashboard SPA (web/)"
         if [[ -f web/package.json ]]; then
-            (cd web && npm install --omit=dev --no-audit --no-fund && npm run build)
+            # Build needs devDependencies (typescript, vite). Prune them
+            # afterwards so the rootfs only ships the runtime install.
+            (cd web \
+                && npm install --no-audit --no-fund \
+                && npm run build \
+                && npm prune --omit=dev --no-audit --no-fund)
         fi
 
         echo "==> Building Ink TUI (ui-tui/)"
