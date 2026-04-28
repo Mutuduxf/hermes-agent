@@ -751,12 +751,17 @@ class TestAgentCacheSpilloverLive:
         """Many threads inserting in parallel end with len(cache) == CAP."""
         from gateway import run as gw_run
 
-        CAP = 16
+        CAP = 8
         monkeypatch.setattr(gw_run, "_AGENT_CACHE_MAX_SIZE", CAP)
         runner = self._runner()
 
-        N_THREADS = 8
-        PER_THREAD = 20  # 8 * 20 = 160 inserts into a 16-slot cache
+        # Constructing a real AIAgent does non-trivial work (reads model
+        # metadata, may attempt network probes for provider URLs).  Keep
+        # the load high enough to exercise concurrent eviction (well over
+        # CAP) but small enough to finish inside the 30-second per-test
+        # timeout enforced by tests/conftest.py.
+        N_THREADS = 4
+        PER_THREAD = 6  # 4 * 6 = 24 inserts into an 8-slot cache
 
         def worker(tid: int):
             for j in range(PER_THREAD):
@@ -773,7 +778,7 @@ class TestAgentCacheSpilloverLive:
         for t in threads:
             t.start()
         for t in threads:
-            t.join(timeout=30)
+            t.join(timeout=20)
             assert not t.is_alive(), "Worker thread hung — possible deadlock?"
 
         # Let daemon cleanup threads settle.
