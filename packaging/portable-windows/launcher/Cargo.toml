@@ -5,17 +5,16 @@ edition = "2021"
 description = "Hermes Agent portable USB launcher (Windows)"
 license = "Apache-2.0"
 
-# The CI workflow + USB layout expect the binary to be named
-# `HermesLauncher.exe` (PascalCase, no hyphen) since that is the
-# user-facing executable shipped on the stick. Cargo would otherwise
-# derive the binary name from `package.name` and produce
-# `hermes-launcher.exe`. Pin the binary name explicitly so the path in
-# `.github/workflows/portable-windows.yml`
-# (`target/.../release/HermesLauncher.exe`) and the assemble step both
-# resolve regardless of `--bundles none`.
-[[bin]]
-name = "HermesLauncher"
-path = "src/main.rs"
+# The CI workflow + USB layout expect the user-facing executable to be
+# named `HermesLauncher.exe` (PascalCase, no hyphen). We do NOT override
+# the cargo `[[bin]]` name here because tauri-cli's post-build step
+# locates the compiled artifact via `package.name` (i.e.
+# `hermes-launcher.exe`) and then renames it to `package.productName`
+# from `tauri.conf.json`. Setting `productName = "HermesLauncher"` in
+# `tauri.conf.json` makes tauri produce `HermesLauncher.exe`, which is
+# the path referenced by `.github/workflows/portable-windows.yml`. The
+# Chinese display name is preserved via the window title and the
+# USB-staging copy `启动 Hermes 助手.exe`.
 
 [build-dependencies]
 tauri-build = { version = "1", features = [] }
