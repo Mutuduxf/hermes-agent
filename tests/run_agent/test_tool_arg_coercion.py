@@ -65,9 +65,11 @@ class TestCoerceNumber:
         assert _coerce_number("1e5") == 100000
 
     def test_inf_stays_string_for_integer_only(self):
-        """Infinity should not be converted to int."""
+        """Infinity is not JSON-serializable, so the coercer keeps it as
+        the original string rather than promoting to float('inf')."""
         result = _coerce_number("inf")
-        assert result == float("inf")
+        assert result == "inf"
+        assert isinstance(result, str)
 
     def test_negative_float(self):
         assert _coerce_number("-2.5") == -2.5

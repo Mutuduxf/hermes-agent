@@ -266,6 +266,17 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
     monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
+    # Slack's built-in default is tool_progress="off" (Bolt posts can't be
+    # edited like CLI streaming, so progress lines spam channels — see
+    # gateway/display_config.py).  This test exercises the DM threading
+    # plumbing for progress messages, so explicitly opt into "all" via
+    # config.yaml (the per-platform override path).
+    import yaml
+    (tmp_path / "config.yaml").write_text(
+        yaml.dump({"display": {"platforms": {"slack": {"tool_progress": "all"}}}}),
+        encoding="utf-8",
+    )
+
     source = SessionSource(
         platform=Platform.SLACK,
         chat_id="D123",

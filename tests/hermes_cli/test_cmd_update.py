@@ -128,9 +128,14 @@ class TestCmdUpdateBranchFallback:
         #   1. repo root  — slash-command / TUI bridge deps
         #   2. ui-tui/    — Ink TUI deps
         #   3. web/       — install + "npm run build" for the web frontend
+        #
+        # `_run_npm_install_deterministic` prefers `npm ci` when a lockfile is
+        # present (which is the case for all three directories in this repo)
+        # and falls back to `npm install` only on failure. The mocked
+        # subprocess.run always returns rc=0, so we only see the `ci` calls.
         full_flags = [
             "/usr/bin/npm",
-            "install",
+            "ci",
             "--silent",
             "--no-fund",
             "--no-audit",
@@ -139,7 +144,7 @@ class TestCmdUpdateBranchFallback:
         assert npm_calls == [
             (full_flags, PROJECT_ROOT),
             (full_flags, PROJECT_ROOT / "ui-tui"),
-            (["/usr/bin/npm", "install", "--silent"], PROJECT_ROOT / "web"),
+            (["/usr/bin/npm", "ci", "--silent"], PROJECT_ROOT / "web"),
             (["/usr/bin/npm", "run", "build"], PROJECT_ROOT / "web"),
         ]
 
