@@ -85,7 +85,7 @@ docker run --rm \
         echo "==> Installing build deps in builder image"
         apt-get update -qq
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gnupg xz-utils zstd tar git \
+            ca-certificates curl gnupg xz-utils zstd tar git rsync \
             python3 python3-venv python3-pip \
             build-essential pkg-config \
             libssl-dev libffi-dev \
